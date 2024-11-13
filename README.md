@@ -1,4 +1,6 @@
-# SpringJwt
+# SpringSecurity_Jwt
+
+Simple SpringSecurity + JWT Test
 
 
 - Spring Boot 3.3.5
