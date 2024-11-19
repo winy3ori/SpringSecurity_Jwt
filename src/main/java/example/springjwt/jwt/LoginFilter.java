@@ -2,8 +2,10 @@ package example.springjwt.jwt;
 
 import example.springjwt.dto.CustomUserDetails;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -43,24 +45,52 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authentication) {
 
-        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();    // 유저 확인
-
-        String username = customUserDetails.getUsername();  // 유저명 뽑아내기
+        //유저 정보
+        String username = authentication.getName();
 
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         Iterator<? extends GrantedAuthority> iterator = authorities.iterator();
         GrantedAuthority auth = iterator.next();
+        String role = auth.getAuthority();
 
-        String role = auth.getAuthority();  // 롤 값 뽑아내기
+        //토큰 생성
+        String access = jwtUtil.createJwt("access", username, role, 600000L);   //10분
+        String refresh = jwtUtil.createJwt("refresh", username, role, 86400000L);   //24시간
 
-        String token = jwtUtil.createJwt(username, role, 60*60*10L);
+        //응답 설정
+        response.setHeader("access", access);
+        response.addCookie(createCookie("refresh", refresh));
+        response.setStatus(HttpStatus.OK.value());
 
-        response.addHeader("Authorization", "Bearer " + token);
+//        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();    // 유저 확인
+//
+//        String username = customUserDetails.getUsername();  // 유저명 뽑아내기
+//
+//        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+//        Iterator<? extends GrantedAuthority> iterator = authorities.iterator();
+//        GrantedAuthority auth = iterator.next();
+//        String role = auth.getAuthority();  // 롤 값 뽑아내기
+//
+//        String token = jwtUtil.createJwt(username, role, 60*60*10L);
+//
+//        response.addHeader("Authorization", "Bearer " + token);
     }
 
     //로그인 실패시 실행하는 메소드
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed) {
         response.setStatus(401);
+    }
+
+    // 쿠키 생성 메서드
+    private Cookie createCookie(String key, String value) {
+
+        Cookie cookie = new Cookie(key, value);
+        cookie.setMaxAge(24*60*60); // 24시간
+        //cookie.setSecure(true);   // https 통신시
+        //cookie.setPath("/");  // 적용될 범위
+        cookie.setHttpOnly(true);   // JS로 쿠키 접근 제한
+
+        return cookie;
     }
 }
